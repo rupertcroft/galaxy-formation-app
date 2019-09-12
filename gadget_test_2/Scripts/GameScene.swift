@@ -43,6 +43,12 @@ class GameScene: SKScene {
     let dimrate : CGFloat = 0.001
     let cgepsilon : CGFloat = 0.00000001
     var clearlevel : CGFloat = 1
+    var randomColor : UIColor{
+        let hue : CGFloat = CGFloat(arc4random() % 256) / 256
+        let saturation : CGFloat = CGFloat(arc4random() % 128) / 256 + 0.5
+        let brightness : CGFloat = CGFloat(arc4random() % 128) / 256 + 0.5
+        return UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
+    }
     //colors were retrieved from the following website http://cloford.com/resources/colours/500col.htm
     
         var vertices: [(x: CGFloat, y: CGFloat, z: CGFloat)] = [
@@ -75,6 +81,8 @@ class GameScene: SKScene {
     let yOffset: CGFloat = 0
     let minDist: Float = 1750//250
     let cellDim: Float
+    let sqMinDist: Float
+    var debugColors: [[UIColor]]
     
     /*---Variables---*/
     var galaxySprites: [[SKSpriteNode]]
@@ -82,44 +90,50 @@ class GameScene: SKScene {
     var points: [SKSpriteNode]
     var zoomScale: CGFloat
     var gridCells: [[[Int]]]
-    var gridDim: Int{
-        return Int(simDim / cellDim)
-    }
+    let gridDim: Int
     var unionFindContainer: [(Int,[Int])] //Points to parent
     var isParticleInGraphArray: [Bool]
+    var labelContainer: [Int]
     var naiveGalaxies: [[Int]]
     var galaxyData: [Galaxy]
+    var curLabel: Int
+    var timeVal: Double
     
     /*---Old Init---*/
     override init(size: CGSize) {
         /*---New inits---*/
         points = []
         tempScoreCounter = 0
-        cellDim = 2 * minDist
+        cellDim = 2 * (minDist * sqrt(2))
+        gridDim = Int(simDim / cellDim)
+        sqMinDist = minDist * minDist
         zoomScale = min(size.width, size.height)
         unionFindContainer = [(Int,[Int])](repeating: (0, []), count: totalParticles + 1)
+        curLabel = 1 //Start from 1 label (first group)
+        labelContainer = [Int](repeating: 0, count: totalParticles + 1)
         isParticleInGraphArray = [Bool](repeating: false, count: totalParticles + 1)
         isParticleInGraphArray[0] = true //account for one indexing
         naiveGalaxies = []
         gridCells = []
+        debugColors = []
         galaxyData = []
         galaxySprites = [[SKSpriteNode]](repeating: [], count: bounds.count + 1)
-        
+        timeVal = 0
         
         let sound = try! AVAudioPlayer(contentsOf: url)
         audioPlayer = sound
-        //let music = try! AVAudioPlayer(contentsOf: musicUrl)
-        //musicPlayer = music
-        //music.play();
-        //music.numberOfLoops = -1
-        //clusterLevel = 0;
-        // initialize
+        /*let music = try! AVAudioPlayer(contentsOf: musicUrl)
+        musicPlayer = music
+        music.play();
+        music.numberOfLoops = -1
+        clusterLevel = 0;
+        // initialize*/
         self.galaxySprite = []
         initTime = Date().timeIntervalSinceReferenceDate
-            //self.equivClass[i+1] = (i + 1,false)
+            /*self.equivClass[i+1] = (i + 1,false)
         //}
         //P[1].Vel=(0,0,0)
-        //P[1].VelPred=(0,0,0);
+        //P[1].VelPred=(0,0,0);*/
         self.timeCounter = 0
         
         self.touchTracker = SKShapeNode(circleOfRadius: 20.0)
@@ -139,6 +153,7 @@ class GameScene: SKScene {
         
         // finalize
         super.init(size: size)
+        debugColors = [[UIColor]](repeating: [UIColor](repeating: randomColor, count: gridDim), count: gridDim)
         setupGridCells()
         setupPoints()
         
@@ -353,7 +368,12 @@ class GameScene: SKScene {
         resetNaiveGalaxies()
         resetVisited()
         
-        iterThroughGrid()
+        let start = DispatchTime.now()
+        //iterThroughGrid()
+        groupFind()
+        let end = DispatchTime.now()
+        let deltaTime = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1000000000
+        print("Time for UnionFind: \(deltaTime)")
         
         parseGalaxyData()
     }
@@ -375,11 +395,15 @@ class GameScene: SKScene {
     }
     
     func fillGridCells() {
-        //print("(" + String(gridCells.count) + "," + String(gridCells[0].count) + ")")
+        var xGridCoord : Int
+        var yGridCoord : Int
+        var x : Float
+        var y : Float
         for i in 1 ..< totalParticles + 1{
-            let (x, y, _) = P[i].Pos
-            let (xGridCoord, yGridCoord) = (simToGrid(coord: x), simToGrid(coord: y))
-            //print("(" + String(xGridCoord) + "," + String(yGridCoord) + ")")
+            (x, y, _) = P[i].Pos
+            xGridCoord = simToGrid(coord: x)
+            yGridCoord = simToGrid(coord: y)
+//            let (xGridCoord, yGridCoord) = (simToGrid(coord: x), simToGrid(coord: y))
             gridCells[xGridCoord][yGridCoord].append(i)
         }
     }
@@ -419,7 +443,7 @@ class GameScene: SKScene {
         let (fx, fy, _) = P[from].Pos
         let (dx, dy) = (tx - fx, ty - fy)
         let (sqx, sqy) = (dx * dx, dy * dy)
-        let dist = sqrt(sqx + sqy)
+        let dist = sqx + sqy
         return dist
     }
     
@@ -427,37 +451,62 @@ class GameScene: SKScene {
         naiveGalaxies = []
     }
     
+    func boundDim(_ toBound : Int) -> Int{
+        var res = toBound
+        if res < 0 || res >= gridDim{
+            res %= gridCells.count
+            if res < 0 {
+                res += gridCells.count
+            }
+        }
+        return res
+    }
+    
     func startChaining(parent: Int?, child: Int, childCell: (m: Int, n: Int)) {
         if !wasVisited(index: child) {
             markVisited(index: child)
+            //var x = 0;
+            //var y = 0;
             for x in -1 ... 1 {
+                /*switch sx{
+                case -1:
+                    x = 0
+                    break
+                case 0:
+                    x = -1
+                    break
+                default:
+                    break
+                }*/
                 for y in -1 ... 1{
-                    var (nx, ny) = (childCell.m + x, childCell.n + y)
-                    var isInBounds = nx < 0 || ny < 0
-                    isInBounds = !(isInBounds || nx >= gridDim || ny >= gridDim)
-                    if !isInBounds {
-                        nx = nx % gridCells.count
-                        ny = ny % gridCells.count
-                        if nx < 0 {
-                            nx = nx + gridCells.count
-                        }
-                        if ny < 0 {
-                            ny = ny + gridCells.count
-                        }
-                        isInBounds = nx < 0 || ny < 0
-                        isInBounds = !(isInBounds || nx >= gridDim || ny >= gridDim)
-                    }
-                    if isInBounds {
-                        let cellPoints = gridCells[nx][ny]
-                        for i in cellPoints {
-                            if !wasVisited(index: i) {
-                                let dist = distByIndex(to: child, from: i)
-                                if dist < minDist {
-                                    startChaining(parent: child, child: i, childCell: (m: nx,n: ny))
-                                }
+                    /*switch sy{
+                    case -1:
+                        y = 0
+                        break
+                    case 0:
+                        y = -1
+                        break
+                    default:
+                        break
+                    }*/
+                    let (nx, ny) = (boundDim(x + childCell.m), boundDim(y + childCell.n))
+                    //if xInBounds && yInBounds {
+                    let cellPoints = gridCells[nx][ny]
+                    var neighbors : [Int] = []
+                    for i in cellPoints {
+                        if !wasVisited(index: i) {
+                            let dist = distByIndex(to: child, from: i)
+                            if dist < minDist {
+                                neighbors.append(i)
+                                markVisited(index: i)
+                                //startChaining(parent: child, child: i, childCell: (m: nx,n: ny))
                             }
                         }
                     }
+                    for i in neighbors{
+                        startChaining(parent: child, child: i, childCell: (m: nx, n: ny))
+                    }
+                    //}
                 }
             }
             var (_, chchildren) = unionFindContainer[child]
@@ -471,6 +520,57 @@ class GameScene: SKScene {
                 unionFindContainer[child] = (parent!, [])
                 unionFindContainer[parent!] = (parent!, pachildren)
             }
+        }
+    }
+    
+    func groupFind(){
+        /* Finds groups by BFS
+         */
+        for x in 0 ..< gridDim{
+            for y in 0 ..< gridDim{
+                let cellPoints = gridCells[x][y]
+                for i in cellPoints{
+                    if(!isParticleInGraphArray[i]){
+                        naiveGalaxies.append([])
+                        isParticleInGraphArray[i] = true
+                        startBFSGroup(parent: nil, cur: i, x, y)
+                    }
+                }
+            }
+        }
+    }
+    
+    func startBFSGroup(parent: Int?, cur: Int, _ x: Int,_ y: Int){
+        naiveGalaxies[naiveGalaxies.count - 1].append(cur)
+        var neighbors : [(Int,Int,Int)] = [] //localN, x, y
+        for a in -1 ... 1{
+            for b in -1 ... 1{
+                let (nx, ny) = (boundDim(x + a), boundDim(y + b))
+                let cellPoints = gridCells[nx][ny]
+                for i in cellPoints {
+                    if !isParticleInGraphArray[i] {
+                        let isValid : Bool
+                        if x != 0 || y != 0{
+                            let dist = distByIndex(to: cur, from: i)
+                            isValid = dist < sqMinDist
+                        }
+                        else{
+                            isValid = true
+                        }
+                        if isValid{
+                            neighbors.append((i, nx, ny))
+                            isParticleInGraphArray[i] = true
+                        }
+                    }
+                }
+                if a == 0 && b == 0{
+                    gridCells[nx][ny] = [Int]()
+                }
+            }
+        }
+        for neighborTup in neighbors{
+            let (i, nx, ny) = neighborTup
+            startBFSGroup(parent: cur, cur: i, nx, ny)
         }
     }
     
@@ -553,6 +653,26 @@ class GameScene: SKScene {
         //let _ = galaxyData.map(colorGalaxy)
     }
     
+    func setDebugColors(){
+        var found = false
+        for cellRow in gridCells{
+            for cellCol in cellRow{
+                if(cellCol.count > 5){
+                    let newGalaxy = Galaxy()
+                    newGalaxy.particles = cellCol
+                    newGalaxy.sizeClass = indexFromBounds(particleCount: newGalaxy.size)
+                    newGalaxy.center = transform(pos: newGalaxy.centerInSimCoordinates)
+                    colorGalaxy(galaxy: newGalaxy)
+                    found = true
+                    break
+                }
+            }
+            if(found){
+                break
+            }
+        }
+    }
+    
     func setInteraction() {
         if (interaction == 0) {
             self.touchTracker.fillColor = UIColor.clear
@@ -571,16 +691,15 @@ class GameScene: SKScene {
         return 0
     }
     
-    func setLabel() {/*
-        let time = (Float)(60 - (Date().timeIntervalSinceReferenceDate-initTime))
-        if(time >= 0){
-            self.accelLabel.text = "\(13.7 * time/60.0) Billion years ago"
-            self.galaxyCounter.text = "\(scoreCounter)"
-        }
-        else{
-            self.accelLabel.text = "\(-1 * 13.7 * time/60.0) Billion years after"
-            self.galaxyCounter.text = "\(scoreCounter)"
-        }*/
+    func setLabel() {
+    }
+    
+    func printTimeElapsed(_ fnToTime: () -> Void, _ fnName: String){
+        let start = DispatchTime.now()
+        fnToTime()
+        let end = DispatchTime.now()
+        let timeElapsed = Double(end.uptimeNanoseconds - start.uptimeNanoseconds) / 1_000_000_000
+        //print("Time elapsed by \(fnName): \(timeElapsed)")
     }
     
     override func update(_ currentTime: TimeInterval) {
@@ -588,17 +707,21 @@ class GameScene: SKScene {
             return
         }
         else{
+            printTimeElapsed(setPositions, "setPositions")
+            printTimeElapsed(getGroupings, "getGroupings")
+            printTimeElapsed(setInteraction, "setInteraction")
+            /*
             setPositions()
             getGroupings()
             //print(naiveGalaxies.count)
-            setInteraction()
+            setInteraction()*/
             tempScoreCounter = getScore()
             if isPlaying{
                 if particlesAreOn {
                     if !particlesVisible{
                         turnParticleVisibility()
                     }
-                    setParticleColors()
+                    //setParticleColors()
                 }
                 else {
                     if particlesVisible{
@@ -723,4 +846,3 @@ class GameScene: SKScene {
         galaxySprite.zPosition = points[points.count - 1].zPosition
     }
 }
-

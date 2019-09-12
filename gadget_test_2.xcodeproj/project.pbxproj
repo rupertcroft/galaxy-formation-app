@@ -17,6 +17,7 @@
 		7117F47121260447005EA4C0 /* CToSwift.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7117F47021260447005EA4C0 /* CToSwift.swift */; };
 		7148CEE121D0279400957779 /* title.png in Resources */ = {isa = PBXBuildFile; fileRef = 7148CEE021D0279400957779 /* title.png */; };
 		714A8B3420D8790800C05C20 /* Structures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 714A8B3320D8790800C05C20 /* Structures.swift */; };
+		714C5A9B22AAA8420081448C /* TempGameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 714C5A9A22AAA8420081448C /* TempGameScene.swift */; };
 		716280DF20499EF000004B27 /* levels.txt in Resources */ = {isa = PBXBuildFile; fileRef = 716280DE20499EF000004B27 /* levels.txt */; };
 		7172375720659A6900C324D3 /* MechanicTestingController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7172375620659A6900C324D3 /* MechanicTestingController.swift */; };
 		7172375B20659BEB00C324D3 /* testReadWrite.txt in Resources */ = {isa = PBXBuildFile; fileRef = 7172375A20659BEB00C324D3 /* testReadWrite.txt */; };
@@ -128,6 +129,7 @@
 		7117F47021260447005EA4C0 /* CToSwift.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CToSwift.swift; sourceTree = "<group>"; };
 		7148CEE021D0279400957779 /* title.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = title.png; sourceTree = "<group>"; };
 		714A8B3320D8790800C05C20 /* Structures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Structures.swift; sourceTree = "<group>"; };
+		714C5A9A22AAA8420081448C /* TempGameScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempGameScene.swift; sourceTree = "<group>"; };
 		716280DE20499EF000004B27 /* levels.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = levels.txt; sourceTree = "<group>"; };
 		7172375620659A6900C324D3 /* MechanicTestingController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MechanicTestingController.swift; sourceTree = "<group>"; };
 		7172375A20659BEB00C324D3 /* testReadWrite.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = testReadWrite.txt; sourceTree = "<group>"; };
@@ -289,6 +291,7 @@
 				71AE587320403A35008422D7 /* LevelSelectImgController.swift */,
 				E74548811B1E4BCC001D885B /* GameScene_old.swift */,
 				7117F47021260447005EA4C0 /* CToSwift.swift */,
+				714C5A9A22AAA8420081448C /* TempGameScene.swift */,
 				E74548831B1E4BCC001D885B /* GameViewController.swift */,
 				7172375620659A6900C324D3 /* MechanicTestingController.swift */,
 				E0FA93521E78ED050072820F /* MenuController.swift */,
@@ -682,6 +685,7 @@
 				FE8677691D2EEFF700B2D908 /* MenuScene.swift in Sources */,
 				E74548D91B1E4CF0001D885B /* restart.c in Sources */,
 				71FEFCAE2023BFD500455EBA /* Galaxy.swift in Sources */,
+				714C5A9B22AAA8420081448C /* TempGameScene.swift in Sources */,
 				E74548BF1B1E4CC2001D885B /* forcetree.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
